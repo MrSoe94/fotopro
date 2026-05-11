@@ -18,15 +18,13 @@
         }
         .paper-a4 {
             width: 210mm;
-            min-height: 297mm;
+            height: 297mm;
             padding: 10mm;
             background: white;
             box-shadow: 0 0 15px rgba(0,0,0,0.1);
             margin: auto;
-            display: flex;
-            flex-wrap: wrap;
-            align-content: flex-start;
-            gap: 12px;
+            overflow: hidden;
+            position: relative;
         }
         .photo-item {
             border: 0.1px solid #ddd;
@@ -37,8 +35,16 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            transition: all 0.3s ease;
+            transition: outline 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
         }
+        .photo-item.is-free {
+            position: absolute;
+            cursor: grab;
+            touch-action: none; /* allow dragging on touch devices */
+            /* prevent width/height animation so relayout is deterministic */
+            transition: none;
+        }
+        .photo-item.is-free.dragging { opacity: 0.75; cursor: grabbing; }
         .photo-item:hover {
             outline: 2px solid #3b82f6;
             z-index: 10;
@@ -205,6 +211,72 @@ const canvas = document.getElementById('photo-canvas');
         let imgX = 0, imgY = 0, scale = 1;
         let isDragging = false, lastX = 0, lastY = 0;
         let processedPhotoData = null;
+        let activeMove = null;
+        const ITEM_GAP = 12; // px
+        let autoCursor = { x: ITEM_GAP, y: ITEM_GAP, rowH: 0 };
+
+        function resetAutoCursor() {
+            autoCursor = { x: ITEM_GAP, y: ITEM_GAP, rowH: 0 };
+        }
+
+        function relayoutAll() {
+            const items = Array.from(printArea.querySelectorAll('.photo-item'));
+            if (!items.length) return;
+
+            const areaW = printArea.clientWidth;
+            const areaH = printArea.clientHeight;
+            resetAutoCursor();
+
+            function placeNext(w, h) {
+                if (autoCursor.x + w > areaW - ITEM_GAP) {
+                    autoCursor.x = ITEM_GAP;
+                    autoCursor.y = autoCursor.y + autoCursor.rowH + ITEM_GAP;
+                    autoCursor.rowH = 0;
+                }
+                if (autoCursor.y + h > areaH - ITEM_GAP) {
+                    autoCursor.x = ITEM_GAP;
+                    autoCursor.y = ITEM_GAP;
+                    autoCursor.rowH = 0;
+                }
+                const pos = { left: autoCursor.x, top: autoCursor.y };
+                autoCursor.x += w + ITEM_GAP;
+                autoCursor.rowH = Math.max(autoCursor.rowH, h);
+                return pos;
+            }
+
+            // Keep current visual order as best as possible
+            items.sort((a, b) => {
+                const at = parseFloat(a.style.top) || 0;
+                const bt = parseFloat(b.style.top) || 0;
+                if (at !== bt) return at - bt;
+                const al = parseFloat(a.style.left) || 0;
+                const bl = parseFloat(b.style.left) || 0;
+                return al - bl;
+            });
+
+            for (const el of items) {
+                const w = el.offsetWidth;
+                const h = el.offsetHeight;
+                const pos = placeNext(w, h);
+                el.style.left = pos.left + 'px';
+                el.style.top = pos.top + 'px';
+            }
+        }
+
+        let relayoutRaf = 0;
+        function scheduleRelayout() {
+            // Wait until style changes (e.g. rotate width/height) are applied,
+            // then pack items again so no empty spaces remain.
+            if (relayoutRaf) cancelAnimationFrame(relayoutRaf);
+            relayoutRaf = requestAnimationFrame(() => {
+                relayoutRaf = 0;
+                // Run twice to survive layout/paint timing and image/calc changes.
+                relayoutAll();
+                requestAnimationFrame(() => relayoutAll());
+                // Also re-run after any pending transitions settle.
+                setTimeout(() => relayoutAll(), 350);
+            });
+        }
 
         function clampNumber(n, fallback) {
             const v = Number(n);
@@ -313,11 +385,109 @@ const canvas = document.getElementById('photo-canvas');
             const baseWidth = wCm * pxScale;
             const baseHeight = hCm * pxScale;
 
+            const areaW = printArea.clientWidth;
+            const areaH = printArea.clientHeight;
+
+            function placeNext(w, h) {
+                // Wrap to next row if needed
+                if (autoCursor.x + w > areaW - ITEM_GAP) {
+                    autoCursor.x = ITEM_GAP;
+                    autoCursor.y = autoCursor.y + autoCursor.rowH + ITEM_GAP;
+                    autoCursor.rowH = 0;
+                }
+                // If next row would overflow paper, start over at top-left (still clamped)
+                if (autoCursor.y + h > areaH - ITEM_GAP) {
+                    autoCursor.x = ITEM_GAP;
+                    autoCursor.y = ITEM_GAP;
+                    autoCursor.rowH = 0;
+                }
+                const pos = { left: autoCursor.x, top: autoCursor.y };
+                autoCursor.x += w + ITEM_GAP;
+                autoCursor.rowH = Math.max(autoCursor.rowH, h);
+                return pos;
+            }
+
+            function rectsOverlap(a, b) {
+                return !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
+            }
+
+            function getRectFor(el, left, top) {
+                const w = el.offsetWidth;
+                const h = el.offsetHeight;
+                return { left, top, right: left + w, bottom: top + h, w, h };
+            }
+
+            function getRectForWithGap(el, left, top) {
+                const r = getRectFor(el, left, top);
+                return {
+                    left: r.left - ITEM_GAP,
+                    top: r.top - ITEM_GAP,
+                    right: r.right + ITEM_GAP,
+                    bottom: r.bottom + ITEM_GAP,
+                    w: r.w,
+                    h: r.h,
+                };
+            }
+
+            function clampPos(left, top, el) {
+                const w = el.offsetWidth;
+                const h = el.offsetHeight;
+                return {
+                    left: Math.max(0, Math.min(left, areaW - w)),
+                    top: Math.max(0, Math.min(top, areaH - h)),
+                };
+            }
+
+            function resolveCollisions(el) {
+                // Push down/right in a simple scan until no overlaps, keeping ITEM_GAP.
+                const others = Array.from(printArea.querySelectorAll('.photo-item')).filter(x => x !== el);
+                let left = parseFloat(el.style.left) || 0;
+                let top = parseFloat(el.style.top) || 0;
+
+                // snap to gap grid
+                left = Math.round(left / ITEM_GAP) * ITEM_GAP;
+                top = Math.round(top / ITEM_GAP) * ITEM_GAP;
+
+                let safety = 500;
+                while (safety-- > 0) {
+                    const c = clampPos(left, top, el);
+                    left = c.left; top = c.top;
+                    const r = getRectForWithGap(el, left, top);
+                    const hit = others.find(o => {
+                        const ol = parseFloat(o.style.left) || 0;
+                        const ot = parseFloat(o.style.top) || 0;
+                        const or = getRectForWithGap(o, ol, ot);
+                        return rectsOverlap(r, or);
+                    });
+                    if (!hit) break;
+
+                    // move to the right of the collided item, else next line
+                    const hitLeft = parseFloat(hit.style.left) || 0;
+                    const hitTop = parseFloat(hit.style.top) || 0;
+                    const nextLeft = hitLeft + hit.offsetWidth + ITEM_GAP;
+                    if (nextLeft + el.offsetWidth <= areaW) {
+                        left = nextLeft;
+                        top = hitTop;
+                    } else {
+                        left = ITEM_GAP;
+                        top = hitTop + hit.offsetHeight + ITEM_GAP;
+                    }
+                }
+
+                const finalPos = clampPos(left, top, el);
+                el.style.left = finalPos.left + 'px';
+                el.style.top = finalPos.top + 'px';
+            }
+
             for (let i = 0; i < count; i++) {
                 const container = document.createElement('div');
-                container.className = 'photo-item';
+                container.className = 'photo-item is-free';
                 container.style.width = baseWidth + 'px';
                 container.style.height = baseHeight + 'px';
+                const pos = placeNext(baseWidth, baseHeight);
+                container.style.left = pos.left + 'px';
+                container.style.top = pos.top + 'px';
+                container.style.zIndex = String(1 + printArea.querySelectorAll('.photo-item').length);
                 
                 container.dataset.w = baseWidth;
                 container.dataset.h = baseHeight;
@@ -329,7 +499,68 @@ const canvas = document.getElementById('photo-canvas');
                 
                 container.appendChild(photoImg);
 
+                // Free move (drag anywhere on page)
+                const moveThreshold = 3;
+                let downX = 0, downY = 0, startLeft = 0, startTop = 0, moved = false;
+
+                container.addEventListener('pointerdown', (e) => {
+                    // Avoid starting drag from delete button
+                    if (e.target && e.target.classList && e.target.classList.contains('delete-btn')) return;
+                    container.setPointerCapture(e.pointerId);
+                    const r = printArea.getBoundingClientRect();
+                    downX = e.clientX;
+                    downY = e.clientY;
+                    startLeft = parseFloat(container.style.left) || 0;
+                    startTop = parseFloat(container.style.top) || 0;
+                    moved = false;
+                    activeMove = { id: e.pointerId, areaRect: r };
+                    container.classList.add('dragging');
+                    // bring to front
+                    container.style.zIndex = String(Date.now());
+                });
+
+                container.addEventListener('pointermove', (e) => {
+                    if (!activeMove || activeMove.id !== e.pointerId) return;
+                    const dx = e.clientX - downX;
+                    const dy = e.clientY - downY;
+                    if (!moved && (Math.abs(dx) > moveThreshold || Math.abs(dy) > moveThreshold)) moved = true;
+
+                    const r = printArea.getBoundingClientRect();
+                    const areaW = r.width;
+                    const areaH = r.height;
+                    const w = container.offsetWidth;
+                    const h = container.offsetHeight;
+
+                    let left = startLeft + dx;
+                    let top = startTop + dy;
+
+                    // clamp within page area
+                    left = Math.max(0, Math.min(left, areaW - w));
+                    top = Math.max(0, Math.min(top, areaH - h));
+
+                    // Follow mouse smoothly, then auto-push away from overlaps.
+                    const clamped = clampPos(left, top, container);
+                    container.style.left = clamped.left + 'px';
+                    container.style.top = clamped.top + 'px';
+                    resolveCollisions(container);
+                });
+
+                container.addEventListener('pointerup', (e) => {
+                    if (!activeMove || activeMove.id !== e.pointerId) return;
+                    container.releasePointerCapture(e.pointerId);
+                    container.classList.remove('dragging');
+                    activeMove = null;
+
+                    // Snap + avoid overlap after move; also suppress click-rotate if it was a drag.
+                    if (moved) {
+                        container.dataset.suppressClick = '1';
+                        resolveCollisions(container);
+                        setTimeout(() => { delete container.dataset.suppressClick; }, 0);
+                    }
+                });
+
                 container.onclick = function() {
+                    if (container.dataset.suppressClick === '1') return;
                     const isPortrait = this.dataset.mode === "portrait";
                     const w = parseFloat(this.dataset.w);
                     const h = parseFloat(this.dataset.h);
@@ -347,6 +578,7 @@ const canvas = document.getElementById('photo-canvas');
                         photoImg.style.transform = "translate(-50%, -50%) rotate(-90deg)";
                         
                         this.dataset.mode = "landscape";
+                        scheduleRelayout();
                     } else {
                         // Kembali ke Portrait
                         this.style.width = w + 'px';
@@ -357,16 +589,20 @@ const canvas = document.getElementById('photo-canvas');
                         photoImg.style.transform = "translate(-50%, -50%) rotate(0deg)";
                         
                         this.dataset.mode = "portrait";
+                        scheduleRelayout();
                     }
                 };
 
                 const del = document.createElement('div');
                 del.className = 'delete-btn no-print';
                 del.innerHTML = '×';
-                del.onclick = (e) => { e.stopPropagation(); container.remove(); };
+                del.onclick = (e) => { e.stopPropagation(); container.remove(); scheduleRelayout(); };
                 container.appendChild(del);
                 
                 printArea.appendChild(container);
+                resolveCollisions(container);
+                // If the new item causes a wrap/row change, pack everything for consistency.
+                scheduleRelayout();
             }
         }
 
