@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exported Project</title>
+  
+  <style>
+@media print {
+            .no-print { display: none !important; }
+            body { background: white; padding: 0; }
+            #print-area {
+                position: absolute;
+                left: 0; top: 0;
+                margin: 0; padding: 0;
+                box-shadow: none;
+            }
+        }
+        .paper-a4 {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 10mm;
+            background: white;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            margin: auto;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            gap: 12px;
+        }
+        .photo-item {
+            border: 0.1px solid #ddd;
+            position: relative;
+            cursor: pointer;
+            background-color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .photo-item:hover {
+            outline: 2px solid #3b82f6;
+            z-index: 10;
+        }
+        .photo-img {
+            display: block;
+            object-fit: cover;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+        }
+        .delete-btn {
+            position: absolute;
+            top: -8px; right: -8px;
+            background: #ef4444; color: white;
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            font-size: 12px;
+            display: none;
+            align-items: center; justify-content: center;
+            cursor: pointer; border: 1.5px solid white;
+            z-index: 30;
+        }
+        .photo-item:hover .delete-btn { display: flex; }
+        
+        #canvas-container {
+            max-width: 100%;
+            overflow: hidden;
+            background: #f3f4f6;
+            border-radius: 8px;
+            position: relative;
+            cursor: move;
+        }
+        #photo-canvas {
+            display: block;
+            margin: 0 auto;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+  </style>
+</head>
+<body>
+<meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pas Foto Studio Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <nav class="bg-white shadow-sm mb-6 no-print">
+        <div class="max-w-6xl mx-auto px-4 flex">
+            <button onclick="switchTab('editor')" id="tab-editor" class="py-4 px-6 border-b-2 border-blue-600 text-blue-600 font-bold flex items-center gap-2">
+                <span>🎨</span> Editor
+            </button>
+            <button onclick="switchTab('layout')" id="tab-layout" class="py-4 px-6 border-b-2 border-transparent text-gray-500 font-medium flex items-center gap-2">
+                <span>🖨️</span> Layout Cetak
+            </button>
+        </div>
+    </nav>
+    <div class="max-w-6xl mx-auto px-4 pb-12">
+        <div id="section-editor" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <div id="canvas-container">
+                        <canvas id="photo-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="space-y-4 no-print">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-slate-800 mb-4">Pengaturan Foto</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-2">1. Unggah Foto</label>
+                            <input type="file" id="uploadInput" accept="image/*" class="w-full text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-2">2. Warna Latar</label>
+                            <div class="flex gap-2">
+                                <button onclick="changeBg('#ff0000')" class="w-8 h-8 rounded-full bg-red-600 border-2 border-white shadow-sm"></button>
+                                <button onclick="changeBg('#0000ff')" class="w-8 h-8 rounded-full bg-blue-600 border-2 border-white shadow-sm"></button>
+                                <button onclick="changeBg('#ffffff')" class="w-8 h-8 rounded-full bg-white border-2 border-slate-300 shadow-sm"></button>
+                                <input type="color" onchange="changeBg(this.value)" class="w-8 h-8 rounded-full border-0 p-0 overflow-hidden">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-2">3. Ukuran Cetak (Layout)</label>
+                            <select id="aspectSelect" onchange="updatePrintSizeUI()" class="w-full p-2 text-sm border rounded-md">
+                                <option value="2:3">2 x 3 cm</option>
+                                <option value="3:4" selected="">3 x 4 cm</option>
+                                <option value="4:6">4 x 6 cm</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                            <div id="customSizeWrap" class="hidden mt-3">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Lebar (cm)</label>
+                                        <input id="customW" type="number" min="0.1" step="0.1" value="3" class="w-full p-2 text-sm border rounded-md">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Tinggi (cm)</label>
+                                        <input id="customH" type="number" min="0.1" step="0.1" value="4" class="w-full p-2 text-sm border rounded-md">
+                                    </div>
+                                </div>
+                                <p class="text-[11px] text-slate-500 mt-2">Contoh: 3 × 4 cm. Nilai dipakai untuk editor & layout cetak.</p>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-2">4. Zoom</label>
+                            <input type="range" id="zoomRange" min="0.1" max="3" step="0.01" value="1" class="w-full">
+                        </div>
+                        <button onclick="useThisPhoto()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition">
+                            Masukkan ke Layout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="section-layout" class="hidden">
+            <div class="flex flex-col lg:flex-row gap-8">
+                <div class="lg:w-1/4 no-print space-y-4">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="font-bold text-slate-800 mb-4">Opsi Cetak</h3>
+                        <div class="space-y-3">
+                            <label class="block text-xs text-slate-500">Jumlah Salinan</label>
+                            <input type="number" id="printCount" value="1" min="1" class="w-full p-2 border rounded-md text-sm">
+                            <button onclick="addCurrentToLayout()" class="w-full bg-indigo-500 text-white py-2 rounded-lg font-semibold">Tambah Foto</button>
+                            <hr>
+                            <button onclick="window.print()" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold shadow-md flex items-center justify-center gap-2">
+                                <span>🖨️</span> Cetak Halaman
+                            </button>
+                            <button onclick="clearLayout()" class="w-full text-red-500 text-sm py-2">Bersihkan Lembar</button>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 leading-relaxed">
+                        <strong>Tips Rotasi:</strong> Klik pada foto di lembar kerja untuk beralih antara <strong>Portrait</strong> dan <strong>Landscape</strong>. Proporsi foto akan tetap terjaga (tidak gepeng).
+                    </div>
+                </div>
+                <div class="lg:w-3/4 overflow-auto bg-slate-200 p-4 rounded-xl">
+                    <div id="print-area" class="paper-a4">
+                        <div id="layout-placeholder" class="w-full h-96 flex flex-col items-center justify-center text-slate-300">
+                            <span class="text-6xl mb-4">📄</span>
+                            <p>Lembar kerja masih kosong</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+  <script >
+const canvas = document.getElementById('photo-canvas');
+        const ctx = canvas.getContext('2d');
+        const uploadInput = document.getElementById('uploadInput');
+        const zoomRange = document.getElementById('zoomRange');
+        const aspectSelect = document.getElementById('aspectSelect');
+        const printArea = document.getElementById('print-area');
+        const customSizeWrap = document.getElementById('customSizeWrap');
+        const customW = document.getElementById('customW');
+        const customH = document.getElementById('customH');
+
+        let img = new Image();
+        let currentBgColor = '#ffffff';
+        let imgX = 0, imgY = 0, scale = 1;
+        let isDragging = false, lastX = 0, lastY = 0;
+        let processedPhotoData = null;
+
+        function clampNumber(n, fallback) {
+            const v = Number(n);
+            if (!Number.isFinite(v) || v <= 0) return fallback;
+            return v;
+        }
+
+        // Editor dibuat tetap (default 3x4 cm) agar crop/zoom konsisten.
+        const editorSizeCm = { wCm: 3, hCm: 4 };
+
+        function getPrintSizeCm() {
+            if (aspectSelect.value === 'custom') {
+                const w = clampNumber(customW.value, 3);
+                const h = clampNumber(customH.value, 4);
+                return { wCm: w, hCm: h };
+            }
+            const aspect = aspectSelect.value.split(':');
+            return { wCm: parseFloat(aspect[0]), hCm: parseFloat(aspect[1]) };
+        }
+
+        function updateCanvasSize() {
+            const { wCm, hCm } = editorSizeCm;
+            canvas.width = Math.round(wCm * 100);
+            canvas.height = Math.round(hCm * 100);
+            draw();
+        }
+
+        function updatePrintSizeUI() {
+            const isCustom = aspectSelect.value === 'custom';
+            customSizeWrap.classList.toggle('hidden', !isCustom);
+        }
+        updateCanvasSize();
+        updatePrintSizeUI();
+        customW.addEventListener('input', () => {
+            if (aspectSelect.value === 'custom') updatePrintSizeUI();
+        });
+        customH.addEventListener('input', () => {
+            if (aspectSelect.value === 'custom') updatePrintSizeUI();
+        });
+
+        uploadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    img.onload = () => {
+                        scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+                        zoomRange.value = scale;
+                        imgX = (canvas.width - img.width * scale) / 2;
+                        imgY = (canvas.height - img.height * scale) / 2;
+                        draw();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function changeBg(color) { currentBgColor = color; draw(); }
+
+        function draw() {
+            ctx.fillStyle = currentBgColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            if (img.src) {
+                ctx.save();
+                ctx.drawImage(img, imgX, imgY, img.width * scale, img.height * scale);
+                ctx.restore();
+            }
+        }
+
+        zoomRange.addEventListener('input', () => { scale = parseFloat(zoomRange.value); draw(); });
+        canvas.addEventListener('mousedown', (e) => { isDragging = true; lastX = e.offsetX; lastY = e.offsetY; });
+        window.addEventListener('mouseup', () => isDragging = false);
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                imgX += e.offsetX - lastX;
+                imgY += e.offsetY - lastY;
+                lastX = e.offsetX; lastY = e.offsetY;
+                draw();
+            }
+        });
+
+        function switchTab(tab) {
+            document.getElementById('section-editor').classList.toggle('hidden', tab !== 'editor');
+            document.getElementById('section-layout').classList.toggle('hidden', tab !== 'layout');
+            document.getElementById('tab-editor').className = tab === 'editor' ? "py-4 px-6 border-b-2 border-blue-600 text-blue-600 font-bold flex items-center gap-2" : "py-4 px-6 border-b-2 border-transparent text-gray-500 font-medium flex items-center gap-2";
+            document.getElementById('tab-layout').className = tab === 'layout' ? "py-4 px-6 border-b-2 border-blue-600 text-blue-600 font-bold flex items-center gap-2" : "py-4 px-6 border-b-2 border-transparent text-gray-500 font-medium flex items-center gap-2";
+        }
+
+        function useThisPhoto() {
+            if (!img.src) return;
+            processedPhotoData = canvas.toDataURL('image/jpeg', 0.95);
+            switchTab('layout');
+            addCurrentToLayout();
+        }
+
+        function addCurrentToLayout() {
+            if (!processedPhotoData) return;
+            const placeholder = document.getElementById('layout-placeholder');
+            if (placeholder) placeholder.remove();
+
+            const count = parseInt(document.getElementById('printCount').value) || 1;
+            const { wCm, hCm } = getPrintSizeCm();
+            const pxScale = 37.795; // conversion factor for cm to px at 96dpi
+
+            const baseWidth = wCm * pxScale;
+            const baseHeight = hCm * pxScale;
+
+            for (let i = 0; i < count; i++) {
+                const container = document.createElement('div');
+                container.className = 'photo-item';
+                container.style.width = baseWidth + 'px';
+                container.style.height = baseHeight + 'px';
+                
+                container.dataset.w = baseWidth;
+                container.dataset.h = baseHeight;
+                container.dataset.mode = "portrait";
+
+                const photoImg = document.createElement('img');
+                photoImg.src = processedPhotoData;
+                photoImg.className = 'photo-img';
+                
+                container.appendChild(photoImg);
+
+                container.onclick = function() {
+                    const isPortrait = this.dataset.mode === "portrait";
+                    const w = parseFloat(this.dataset.w);
+                    const h = parseFloat(this.dataset.h);
+
+                    if (isPortrait) {
+                        // Menjadi Landscape
+                        this.style.width = h + 'px';
+                        this.style.height = w + 'px';
+                        
+                        // Rotasi 90 derajat tanpa terpotong:
+                        // Elemen img harus tetap "berukuran portrait" (w x h),
+                        // karena setelah rotate 90° bounding box-nya menjadi (h x w) dan pas dengan container.
+                        photoImg.style.width = w + 'px';
+                        photoImg.style.height = h + 'px';
+                        photoImg.style.transform = "translate(-50%, -50%) rotate(-90deg)";
+                        
+                        this.dataset.mode = "landscape";
+                    } else {
+                        // Kembali ke Portrait
+                        this.style.width = w + 'px';
+                        this.style.height = h + 'px';
+                        
+                        photoImg.style.width = '100%';
+                        photoImg.style.height = '100%';
+                        photoImg.style.transform = "translate(-50%, -50%) rotate(0deg)";
+                        
+                        this.dataset.mode = "portrait";
+                    }
+                };
+
+                const del = document.createElement('div');
+                del.className = 'delete-btn no-print';
+                del.innerHTML = '×';
+                del.onclick = (e) => { e.stopPropagation(); container.remove(); };
+                container.appendChild(del);
+                
+                printArea.appendChild(container);
+            }
+        }
+
+        function clearLayout() {
+            if (confirm("Hapus semua foto di lembar kerja?")) {
+                printArea.innerHTML = `<div id="layout-placeholder" class="w-full h-96 flex flex-col items-center justify-center text-slate-300"><span class="text-6xl mb-4">📄</span><p>Lembar kerja masih kosong</p></div>`;
+            }
+        }
+  </script>
+</body>
+</html>
