@@ -1,282 +1,276 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Exported Project</title>
-  
-  <style>
-@media print {
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pas Foto Studio Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        @media print {
             .no-print { display: none !important; }
-            body { background: white; padding: 0; }
+            body { background: white; padding: 0; margin: 0; }
             #print-area {
                 position: absolute;
                 left: 0; top: 0;
                 margin: 0; padding: 0;
-                box-shadow: none;
+                box-shadow: none !important;
+                border: none !important;
             }
         }
+
         .paper-a4 {
             width: 210mm;
             height: 297mm;
             padding: 10mm;
             background: white;
-            box-shadow: 0 0 15px rgba(0,0,0,0.1);
-            margin: auto;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+            position: relative;
+            border: 1px solid #e2e8f0;
             overflow: hidden;
-            position: relative;
         }
+
         .photo-item {
-            border: 0.1px solid #ddd;
-            position: relative;
-            cursor: pointer;
+            position: absolute;
+            cursor: grab;
             background-color: #fff;
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
-            transition: outline 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+            overflow: hidden; /* Mengunci konten di dalam */
+            touch-action: none;
+            user-select: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .photo-item.is-free {
-            position: absolute;
-            cursor: grab;
-            touch-action: none; /* allow dragging on touch devices */
-            /* prevent width/height animation so relayout is deterministic */
-            transition: none;
-        }
-        .photo-item.is-free.dragging { opacity: 0.75; cursor: grabbing; }
-        .photo-item:hover {
+
+        .photo-item:active { cursor: grabbing; }
+
+        .photo-item.dragging {
+            opacity: 0.9;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+            z-index: 9999 !important;
             outline: 2px solid #3b82f6;
-            z-index: 10;
         }
+
         .photo-img {
             display: block;
             object-fit: cover;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
             width: 100%;
             height: 100%;
+            pointer-events: none;
+            transition: transform 0.2s ease;
         }
+
         .delete-btn {
             position: absolute;
-            top: -8px; right: -8px;
-            background: #ef4444; color: white;
-            width: 20px; height: 20px;
+            top: 2px;
+            right: 2px;
+            background: #ef4444;
+            color: white;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             font-size: 12px;
             display: none;
-            align-items: center; justify-content: center;
-            cursor: pointer; border: 1.5px solid white;
-            z-index: 30;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 1px solid white;
+            z-index: 300;
         }
+
         .photo-item:hover .delete-btn { display: flex; }
-        
+
         #canvas-container {
-            max-width: 100%;
-            overflow: hidden;
-            background: #f3f4f6;
-            border-radius: 8px;
+            width: 100%;
+            background: #f1f5f9;
+            border-radius: 12px;
             position: relative;
-            cursor: move;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            min-height: 400px;
+            border: 2px dashed #cbd5e1;
         }
+
         #photo-canvas {
-            display: block;
-            margin: 0 auto;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            background: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
         }
-  </style>
+
+        .tab-active {
+            border-bottom: 2px solid #2563eb;
+            color: #2563eb;
+            font-weight: 600;
+        }
+    </style>
 </head>
 <body>
-<meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pas Foto Studio Pro</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <nav class="bg-white shadow-sm mb-6 no-print">
-        <div class="max-w-6xl mx-auto px-4 flex">
-            <button onclick="switchTab('editor')" id="tab-editor" class="py-4 px-6 border-b-2 border-blue-600 text-blue-600 font-bold flex items-center gap-2">
-                <span>🎨</span> Editor
-            </button>
-            <button onclick="switchTab('layout')" id="tab-layout" class="py-4 px-6 border-b-2 border-transparent text-gray-500 font-medium flex items-center gap-2">
-                <span>🖨️</span> Layout Cetak
-            </button>
+
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-2">
+                    <div class="bg-blue-600 p-2 rounded-lg text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.72,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56ZM8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.65-3.56L100.28,48h55.44l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z"></path></svg>
+                    </div>
+                    <span class="text-xl font-bold text-slate-900 tracking-tight">Pas Foto <span class="text-blue-600">Pro</span></span>
+                </div>
+                <div class="flex">
+                    <button onclick="switchTab('editor')" id="tab-editor" class="px-6 h-16 flex items-center gap-2 tab-active transition-all">
+                        <span>🎨</span> Editor
+                    </button>
+                    <button onclick="switchTab('layout')" id="tab-layout" class="px-6 h-16 flex items-center gap-2 text-slate-500 font-medium hover:text-blue-600 transition-all">
+                        <span>🖨️</span> Layout Cetak
+                    </button>
+                </div>
+            </div>
         </div>
     </nav>
-    <div class="max-w-6xl mx-auto px-4 pb-12">
-        <div id="section-editor" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div class="lg:col-span-2">
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Editor Section -->
+        <div id="section-editor" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div class="lg:col-span-8">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                     <div id="canvas-container">
                         <canvas id="photo-canvas"></canvas>
+                        <div id="upload-hint" class="absolute pointer-events-none flex flex-col items-center text-slate-400">
+                            <span class="text-4xl mb-2">📸</span>
+                            <p class="text-sm font-medium">Unggah foto untuk memulai</p>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="space-y-4 no-print">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <h3 class="font-bold text-slate-800 mb-4">Pengaturan Foto</h3>
-                    <div class="space-y-4">
+
+            <div class="lg:col-span-4 space-y-6 no-print">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-slate-800 text-lg mb-6 flex items-center gap-2">Kontrol Foto</h3>
+                    
+                    <div class="space-y-6">
                         <div>
-                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-2">1. Unggah Foto</label>
-                            <input type="file" id="uploadInput" accept="image/*" class="w-full text-xs">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">1. Pilih File</label>
+                            <input type="file" id="uploadInput" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                         </div>
+
                         <div>
-                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-2">2. Warna Latar</label>
-                            <div class="flex gap-2">
-                                <button onclick="changeBg('#ff0000')" class="w-8 h-8 rounded-full bg-red-600 border-2 border-white shadow-sm"></button>
-                                <button onclick="changeBg('#0000ff')" class="w-8 h-8 rounded-full bg-blue-600 border-2 border-white shadow-sm"></button>
-                                <button onclick="changeBg('#ffffff')" class="w-8 h-8 rounded-full bg-white border-2 border-slate-300 shadow-sm"></button>
-                                <input type="color" onchange="changeBg(this.value)" class="w-8 h-8 rounded-full border-0 p-0 overflow-hidden">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">2. Latar Belakang</label>
+                            <div class="flex flex-wrap gap-2">
+                                <button onclick="changeBg('#ff0000')" class="w-8 h-8 rounded-lg bg-red-600 border border-slate-200"></button>
+                                <button onclick="changeBg('#0000ff')" class="w-8 h-8 rounded-lg bg-blue-600 border border-slate-200"></button>
+                                <button onclick="changeBg('#ffffff')" class="w-8 h-8 rounded-lg bg-white border border-slate-200"></button>
+                                <input type="color" onchange="changeBg(this.value)" class="w-8 h-8 p-0 border-0 rounded-lg cursor-pointer">
                             </div>
                         </div>
+
                         <div>
-                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-2">3. Ukuran Cetak (Layout)</label>
-                            <select id="aspectSelect" onchange="updatePrintSizeUI()" class="w-full p-2 text-sm border rounded-md">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">3. Ukuran Cetak (Layout)</label>
+                            <p class="text-[11px] text-slate-500 mb-2">Editor tetap 3×4 cm; ukuran di bawah dipakai saat menambah foto ke lembar cetak.</p>
+                            <select id="aspectSelect" onchange="updatePrintSizeUI()" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
                                 <option value="2:3">2 x 3 cm</option>
-                                <option value="3:4" selected="">3 x 4 cm</option>
+                                <option value="3:4" selected>3 x 4 cm</option>
                                 <option value="4:6">4 x 6 cm</option>
                                 <option value="custom">Custom</option>
                             </select>
-                            <div id="customSizeWrap" class="hidden mt-3">
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Lebar (cm)</label>
-                                        <input id="customW" type="number" min="0.1" step="0.1" value="3" class="w-full p-2 text-sm border rounded-md">
-                                    </div>
-                                    <div>
-                                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Tinggi (cm)</label>
-                                        <input id="customH" type="number" min="0.1" step="0.1" value="4" class="w-full p-2 text-sm border rounded-md">
-                                    </div>
+                            <div id="customSizeWrap" class="hidden mt-3 grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Lebar (cm)</label>
+                                    <input type="number" id="customW" min="0.1" step="0.1" value="3" class="w-full p-2 text-sm border border-slate-200 rounded-lg bg-white">
                                 </div>
-                                <p class="text-[11px] text-slate-500 mt-2">Contoh: 3 × 4 cm. Nilai dipakai untuk editor & layout cetak.</p>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tinggi (cm)</label>
+                                    <input type="number" id="customH" min="0.1" step="0.1" value="4" class="w-full p-2 text-sm border border-slate-200 rounded-lg bg-white">
+                                </div>
                             </div>
                         </div>
+
                         <div>
-                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-2">4. Zoom</label>
-                            <input type="range" id="zoomRange" min="0.1" max="3" step="0.01" value="1" class="w-full">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-xs font-bold text-slate-400 uppercase">4. Zoom</label>
+                                <span id="zoomVal" class="text-xs font-bold text-blue-600">100%</span>
+                            </div>
+                            <input type="range" id="zoomRange" min="0.1" max="3" step="0.01" value="1" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
                         </div>
-                        <button onclick="useThisPhoto()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition">
-                            Masukkan ke Layout
+
+                        <button onclick="useThisPhoto()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all">
+                            ✅ Siapkan Layout Cetak
                         </button>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Layout Section -->
         <div id="section-layout" class="hidden">
             <div class="flex flex-col lg:flex-row gap-8">
-                <div class="lg:w-1/4 no-print space-y-4">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <h3 class="font-bold text-slate-800 mb-4">Opsi Cetak</h3>
-                        <div class="space-y-3">
-                            <label class="block text-xs text-slate-500">Jumlah Salinan</label>
-                            <input type="number" id="printCount" value="1" min="1" class="w-full p-2 border rounded-md text-sm">
-                            <button onclick="addCurrentToLayout()" class="w-full bg-indigo-500 text-white py-2 rounded-lg font-semibold">Tambah Foto</button>
-                            <hr>
-                            <button onclick="window.print()" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold shadow-md flex items-center justify-center gap-2">
-                                <span>🖨️</span> Cetak Halaman
+                <div class="lg:w-1/4 no-print space-y-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <h3 class="font-bold text-slate-800 text-lg mb-6">Opsi Cetak</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Tambah Salinan</label>
+                                <div class="flex items-center">
+                                    <input type="number" id="printCount" value="1" min="1" class="w-full h-10 border border-slate-200 rounded-l-xl text-center font-bold">
+                                    <button onclick="addCurrentToLayout()" class="bg-slate-800 text-white px-4 h-10 rounded-r-xl font-bold">+</button>
+                                </div>
+                            </div>
+                            
+                            <button onclick="autoPackItems()" class="w-full border border-blue-200 text-blue-600 py-2 rounded-xl text-sm font-medium hover:bg-blue-50">
+                                🪄 Rapikan Otomatis
                             </button>
-                            <button onclick="clearLayout()" class="w-full text-red-500 text-sm py-2">Bersihkan Lembar</button>
+
+                            <button onclick="window.print()" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">
+                                🖨️ Cetak (A4)
+                            </button>
+                            
+                            <button onclick="clearLayout()" class="w-full text-red-500 py-2 text-sm">Kosongkan Lembar</button>
                         </div>
-                    </div>
-                    <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 leading-relaxed">
-                        <strong>Tips Rotasi:</strong> Klik pada foto di lembar kerja untuk beralih antara <strong>Portrait</strong> dan <strong>Landscape</strong>. Proporsi foto akan tetap terjaga (tidak gepeng).
+                        <div class="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                            <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-1">Tips</p>
+                            <p class="text-xs text-slate-500">Klik satu kali pada foto di kertas untuk memutar posisi (Portrait/Landscape).</p>
+                        </div>
                     </div>
                 </div>
-                <div class="lg:w-3/4 overflow-auto bg-slate-200 p-4 rounded-xl">
+                
+                <div class="lg:w-3/4 bg-slate-200/50 p-8 rounded-3xl overflow-auto flex justify-center">
                     <div id="print-area" class="paper-a4">
-                        <div id="layout-placeholder" class="w-full h-96 flex flex-col items-center justify-center text-slate-300">
-                            <span class="text-6xl mb-4">📄</span>
-                            <p>Lembar kerja masih kosong</p>
-                        </div>
+                        <!-- Foto akan muncul di sini -->
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
-  <script >
-const canvas = document.getElementById('photo-canvas');
+    <script>
+        const canvas = document.getElementById('photo-canvas');
         const ctx = canvas.getContext('2d');
         const uploadInput = document.getElementById('uploadInput');
         const zoomRange = document.getElementById('zoomRange');
+        const zoomVal = document.getElementById('zoomVal');
         const aspectSelect = document.getElementById('aspectSelect');
-        const printArea = document.getElementById('print-area');
         const customSizeWrap = document.getElementById('customSizeWrap');
         const customW = document.getElementById('customW');
         const customH = document.getElementById('customH');
+        const printArea = document.getElementById('print-area');
+        const uploadHint = document.getElementById('upload-hint');
 
         let img = new Image();
         let currentBgColor = '#ffffff';
         let imgX = 0, imgY = 0, scale = 1;
         let isDragging = false, lastX = 0, lastY = 0;
         let processedPhotoData = null;
-        let activeMove = null;
-        const ITEM_GAP = 12; // px
-        let autoCursor = { x: ITEM_GAP, y: ITEM_GAP, rowH: 0 };
-
-        function resetAutoCursor() {
-            autoCursor = { x: ITEM_GAP, y: ITEM_GAP, rowH: 0 };
-        }
-
-        function relayoutAll() {
-            const items = Array.from(printArea.querySelectorAll('.photo-item'));
-            if (!items.length) return;
-
-            const areaW = printArea.clientWidth;
-            const areaH = printArea.clientHeight;
-            resetAutoCursor();
-
-            function placeNext(w, h) {
-                if (autoCursor.x + w > areaW - ITEM_GAP) {
-                    autoCursor.x = ITEM_GAP;
-                    autoCursor.y = autoCursor.y + autoCursor.rowH + ITEM_GAP;
-                    autoCursor.rowH = 0;
-                }
-                if (autoCursor.y + h > areaH - ITEM_GAP) {
-                    autoCursor.x = ITEM_GAP;
-                    autoCursor.y = ITEM_GAP;
-                    autoCursor.rowH = 0;
-                }
-                const pos = { left: autoCursor.x, top: autoCursor.y };
-                autoCursor.x += w + ITEM_GAP;
-                autoCursor.rowH = Math.max(autoCursor.rowH, h);
-                return pos;
-            }
-
-            // Keep current visual order as best as possible
-            items.sort((a, b) => {
-                const at = parseFloat(a.style.top) || 0;
-                const bt = parseFloat(b.style.top) || 0;
-                if (at !== bt) return at - bt;
-                const al = parseFloat(a.style.left) || 0;
-                const bl = parseFloat(b.style.left) || 0;
-                return al - bl;
-            });
-
-            for (const el of items) {
-                const w = el.offsetWidth;
-                const h = el.offsetHeight;
-                const pos = placeNext(w, h);
-                el.style.left = pos.left + 'px';
-                el.style.top = pos.top + 'px';
-            }
-        }
-
-        let relayoutRaf = 0;
-        function scheduleRelayout() {
-            // Wait until style changes (e.g. rotate width/height) are applied,
-            // then pack items again so no empty spaces remain.
-            if (relayoutRaf) cancelAnimationFrame(relayoutRaf);
-            relayoutRaf = requestAnimationFrame(() => {
-                relayoutRaf = 0;
-                // Run twice to survive layout/paint timing and image/calc changes.
-                relayoutAll();
-                requestAnimationFrame(() => relayoutAll());
-                // Also re-run after any pending transitions settle.
-                setTimeout(() => relayoutAll(), 350);
-            });
-        }
+        let activeMoveId = null;
+        const GAP = 12; // Jarak antar foto dalam pixel
+        const CM_TO_PX = 37.795; // ~96 DPI
+        const editorSizeCm = { wCm: 3, hCm: 4 };
 
         function clampNumber(n, fallback) {
             const v = Number(n);
@@ -284,58 +278,32 @@ const canvas = document.getElementById('photo-canvas');
             return v;
         }
 
-        // Editor dibuat tetap (default 3x4 cm) agar crop/zoom konsisten.
-        const editorSizeCm = { wCm: 3, hCm: 4 };
-
         function getPrintSizeCm() {
             if (aspectSelect.value === 'custom') {
-                const w = clampNumber(customW.value, 3);
-                const h = clampNumber(customH.value, 4);
-                return { wCm: w, hCm: h };
+                return {
+                    wCm: clampNumber(customW.value, 3),
+                    hCm: clampNumber(customH.value, 4),
+                };
             }
-            const aspect = aspectSelect.value.split(':');
-            return { wCm: parseFloat(aspect[0]), hCm: parseFloat(aspect[1]) };
-        }
-
-        function updateCanvasSize() {
-            const { wCm, hCm } = editorSizeCm;
-            canvas.width = Math.round(wCm * 100);
-            canvas.height = Math.round(hCm * 100);
-            draw();
+            const [w, h] = aspectSelect.value.split(':').map(Number);
+            return { wCm: w, hCm: h };
         }
 
         function updatePrintSizeUI() {
             const isCustom = aspectSelect.value === 'custom';
             customSizeWrap.classList.toggle('hidden', !isCustom);
         }
-        updateCanvasSize();
-        updatePrintSizeUI();
-        customW.addEventListener('input', () => {
-            if (aspectSelect.value === 'custom') updatePrintSizeUI();
-        });
-        customH.addEventListener('input', () => {
-            if (aspectSelect.value === 'custom') updatePrintSizeUI();
-        });
 
-        uploadInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    img.onload = () => {
-                        scale = Math.max(canvas.width / img.width, canvas.height / img.height);
-                        zoomRange.value = scale;
-                        imgX = (canvas.width - img.width * scale) / 2;
-                        imgY = (canvas.height - img.height * scale) / 2;
-                        draw();
-                    };
-                    img.src = event.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
+        function updateCanvasSize() {
+            canvas.width = Math.round(editorSizeCm.wCm * 100);
+            canvas.height = Math.round(editorSizeCm.hCm * 100);
+            draw();
+        }
 
-        function changeBg(color) { currentBgColor = color; draw(); }
+        function changeBg(color) {
+            currentBgColor = color;
+            draw();
+        }
 
         function draw() {
             ctx.fillStyle = currentBgColor;
@@ -347,8 +315,33 @@ const canvas = document.getElementById('photo-canvas');
             }
         }
 
-        zoomRange.addEventListener('input', () => { scale = parseFloat(zoomRange.value); draw(); });
-        canvas.addEventListener('mousedown', (e) => { isDragging = true; lastX = e.offsetX; lastY = e.offsetY; });
+        uploadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    img.onload = () => {
+                        uploadHint.style.display = 'none';
+                        scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+                        zoomRange.value = scale;
+                        zoomVal.innerText = Math.round(scale * 100) + '%';
+                        imgX = (canvas.width - img.width * scale) / 2;
+                        imgY = (canvas.height - img.height * scale) / 2;
+                        draw();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        zoomRange.addEventListener('input', () => {
+            scale = parseFloat(zoomRange.value);
+            zoomVal.innerText = Math.round(scale * 100) + '%';
+            draw();
+        });
+
+        canvas.addEventListener('mousedown', (e) => { if (img.src) { isDragging = true; lastX = e.offsetX; lastY = e.offsetY; } });
         window.addEventListener('mouseup', () => isDragging = false);
         canvas.addEventListener('mousemove', (e) => {
             if (isDragging) {
@@ -362,255 +355,234 @@ const canvas = document.getElementById('photo-canvas');
         function switchTab(tab) {
             document.getElementById('section-editor').classList.toggle('hidden', tab !== 'editor');
             document.getElementById('section-layout').classList.toggle('hidden', tab !== 'layout');
-            document.getElementById('tab-editor').className = tab === 'editor' ? "py-4 px-6 border-b-2 border-blue-600 text-blue-600 font-bold flex items-center gap-2" : "py-4 px-6 border-b-2 border-transparent text-gray-500 font-medium flex items-center gap-2";
-            document.getElementById('tab-layout').className = tab === 'layout' ? "py-4 px-6 border-b-2 border-blue-600 text-blue-600 font-bold flex items-center gap-2" : "py-4 px-6 border-b-2 border-transparent text-gray-500 font-medium flex items-center gap-2";
+            document.getElementById('tab-editor').classList.toggle('tab-active', tab === 'editor');
+            document.getElementById('tab-layout').classList.toggle('tab-active', tab === 'layout');
         }
 
         function useThisPhoto() {
             if (!img.src) return;
-            processedPhotoData = canvas.toDataURL('image/jpeg', 0.95);
+            processedPhotoData = canvas.toDataURL('image/jpeg', 0.9);
             switchTab('layout');
             addCurrentToLayout();
         }
 
         function addCurrentToLayout() {
             if (!processedPhotoData) return;
-            const placeholder = document.getElementById('layout-placeholder');
-            if (placeholder) placeholder.remove();
-
             const count = parseInt(document.getElementById('printCount').value) || 1;
             const { wCm, hCm } = getPrintSizeCm();
-            const pxScale = 37.795; // conversion factor for cm to px at 96dpi
-
-            const baseWidth = wCm * pxScale;
-            const baseHeight = hCm * pxScale;
-
-            const areaW = printArea.clientWidth;
-            const areaH = printArea.clientHeight;
-
-            function placeNext(w, h) {
-                // Wrap to next row if needed
-                if (autoCursor.x + w > areaW - ITEM_GAP) {
-                    autoCursor.x = ITEM_GAP;
-                    autoCursor.y = autoCursor.y + autoCursor.rowH + ITEM_GAP;
-                    autoCursor.rowH = 0;
-                }
-                // If next row would overflow paper, start over at top-left (still clamped)
-                if (autoCursor.y + h > areaH - ITEM_GAP) {
-                    autoCursor.x = ITEM_GAP;
-                    autoCursor.y = ITEM_GAP;
-                    autoCursor.rowH = 0;
-                }
-                const pos = { left: autoCursor.x, top: autoCursor.y };
-                autoCursor.x += w + ITEM_GAP;
-                autoCursor.rowH = Math.max(autoCursor.rowH, h);
-                return pos;
-            }
-
-            function rectsOverlap(a, b) {
-                return !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
-            }
-
-            function getRectFor(el, left, top) {
-                const w = el.offsetWidth;
-                const h = el.offsetHeight;
-                return { left, top, right: left + w, bottom: top + h, w, h };
-            }
-
-            function getRectForWithGap(el, left, top) {
-                const r = getRectFor(el, left, top);
-                return {
-                    left: r.left - ITEM_GAP,
-                    top: r.top - ITEM_GAP,
-                    right: r.right + ITEM_GAP,
-                    bottom: r.bottom + ITEM_GAP,
-                    w: r.w,
-                    h: r.h,
-                };
-            }
-
-            function clampPos(left, top, el) {
-                const w = el.offsetWidth;
-                const h = el.offsetHeight;
-                return {
-                    left: Math.max(0, Math.min(left, areaW - w)),
-                    top: Math.max(0, Math.min(top, areaH - h)),
-                };
-            }
-
-            function resolveCollisions(el) {
-                // Push down/right in a simple scan until no overlaps, keeping ITEM_GAP.
-                const others = Array.from(printArea.querySelectorAll('.photo-item')).filter(x => x !== el);
-                let left = parseFloat(el.style.left) || 0;
-                let top = parseFloat(el.style.top) || 0;
-
-                // snap to gap grid
-                left = Math.round(left / ITEM_GAP) * ITEM_GAP;
-                top = Math.round(top / ITEM_GAP) * ITEM_GAP;
-
-                let safety = 500;
-                while (safety-- > 0) {
-                    const c = clampPos(left, top, el);
-                    left = c.left; top = c.top;
-                    const r = getRectForWithGap(el, left, top);
-                    const hit = others.find(o => {
-                        const ol = parseFloat(o.style.left) || 0;
-                        const ot = parseFloat(o.style.top) || 0;
-                        const or = getRectForWithGap(o, ol, ot);
-                        return rectsOverlap(r, or);
-                    });
-                    if (!hit) break;
-
-                    // move to the right of the collided item, else next line
-                    const hitLeft = parseFloat(hit.style.left) || 0;
-                    const hitTop = parseFloat(hit.style.top) || 0;
-                    const nextLeft = hitLeft + hit.offsetWidth + ITEM_GAP;
-                    if (nextLeft + el.offsetWidth <= areaW) {
-                        left = nextLeft;
-                        top = hitTop;
-                    } else {
-                        left = ITEM_GAP;
-                        top = hitTop + hit.offsetHeight + ITEM_GAP;
-                    }
-                }
-
-                const finalPos = clampPos(left, top, el);
-                el.style.left = finalPos.left + 'px';
-                el.style.top = finalPos.top + 'px';
-            }
+            const baseWidth = wCm * CM_TO_PX;
+            const baseHeight = hCm * CM_TO_PX;
 
             for (let i = 0; i < count; i++) {
-                const container = document.createElement('div');
-                container.className = 'photo-item is-free';
-                container.style.width = baseWidth + 'px';
-                container.style.height = baseHeight + 'px';
-                const pos = placeNext(baseWidth, baseHeight);
-                container.style.left = pos.left + 'px';
-                container.style.top = pos.top + 'px';
-                container.style.zIndex = String(1 + printArea.querySelectorAll('.photo-item').length);
-                
-                container.dataset.w = baseWidth;
-                container.dataset.h = baseHeight;
-                container.dataset.mode = "portrait";
-
-                const photoImg = document.createElement('img');
-                photoImg.src = processedPhotoData;
-                photoImg.className = 'photo-img';
-                
-                container.appendChild(photoImg);
-
-                // Free move (drag anywhere on page)
-                const moveThreshold = 3;
-                let downX = 0, downY = 0, startLeft = 0, startTop = 0, moved = false;
-
-                container.addEventListener('pointerdown', (e) => {
-                    // Avoid starting drag from delete button
-                    if (e.target && e.target.classList && e.target.classList.contains('delete-btn')) return;
-                    container.setPointerCapture(e.pointerId);
-                    const r = printArea.getBoundingClientRect();
-                    downX = e.clientX;
-                    downY = e.clientY;
-                    startLeft = parseFloat(container.style.left) || 0;
-                    startTop = parseFloat(container.style.top) || 0;
-                    moved = false;
-                    activeMove = { id: e.pointerId, areaRect: r };
-                    container.classList.add('dragging');
-                    // bring to front
-                    container.style.zIndex = String(Date.now());
-                });
-
-                container.addEventListener('pointermove', (e) => {
-                    if (!activeMove || activeMove.id !== e.pointerId) return;
-                    const dx = e.clientX - downX;
-                    const dy = e.clientY - downY;
-                    if (!moved && (Math.abs(dx) > moveThreshold || Math.abs(dy) > moveThreshold)) moved = true;
-
-                    const r = printArea.getBoundingClientRect();
-                    const areaW = r.width;
-                    const areaH = r.height;
-                    const w = container.offsetWidth;
-                    const h = container.offsetHeight;
-
-                    let left = startLeft + dx;
-                    let top = startTop + dy;
-
-                    // clamp within page area
-                    left = Math.max(0, Math.min(left, areaW - w));
-                    top = Math.max(0, Math.min(top, areaH - h));
-
-                    // Follow mouse smoothly, then auto-push away from overlaps.
-                    const clamped = clampPos(left, top, container);
-                    container.style.left = clamped.left + 'px';
-                    container.style.top = clamped.top + 'px';
-                    resolveCollisions(container);
-                });
-
-                container.addEventListener('pointerup', (e) => {
-                    if (!activeMove || activeMove.id !== e.pointerId) return;
-                    container.releasePointerCapture(e.pointerId);
-                    container.classList.remove('dragging');
-                    activeMove = null;
-
-                    // Snap + avoid overlap after move; also suppress click-rotate if it was a drag.
-                    if (moved) {
-                        container.dataset.suppressClick = '1';
-                        resolveCollisions(container);
-                        setTimeout(() => { delete container.dataset.suppressClick; }, 0);
-                    }
-                });
-
-                container.onclick = function() {
-                    if (container.dataset.suppressClick === '1') return;
-                    const isPortrait = this.dataset.mode === "portrait";
-                    const w = parseFloat(this.dataset.w);
-                    const h = parseFloat(this.dataset.h);
-
-                    if (isPortrait) {
-                        // Menjadi Landscape
-                        this.style.width = h + 'px';
-                        this.style.height = w + 'px';
-                        
-                        // Rotasi 90 derajat tanpa terpotong:
-                        // Elemen img harus tetap "berukuran portrait" (w x h),
-                        // karena setelah rotate 90° bounding box-nya menjadi (h x w) dan pas dengan container.
-                        photoImg.style.width = w + 'px';
-                        photoImg.style.height = h + 'px';
-                        photoImg.style.transform = "translate(-50%, -50%) rotate(-90deg)";
-                        
-                        this.dataset.mode = "landscape";
-                        scheduleRelayout();
-                    } else {
-                        // Kembali ke Portrait
-                        this.style.width = w + 'px';
-                        this.style.height = h + 'px';
-                        
-                        photoImg.style.width = '100%';
-                        photoImg.style.height = '100%';
-                        photoImg.style.transform = "translate(-50%, -50%) rotate(0deg)";
-                        
-                        this.dataset.mode = "portrait";
-                        scheduleRelayout();
-                    }
-                };
-
-                const del = document.createElement('div');
-                del.className = 'delete-btn no-print';
-                del.innerHTML = '×';
-                del.onclick = (e) => { e.stopPropagation(); container.remove(); scheduleRelayout(); };
-                container.appendChild(del);
-                
-                printArea.appendChild(container);
-                resolveCollisions(container);
-                // If the new item causes a wrap/row change, pack everything for consistency.
-                scheduleRelayout();
+                const item = createPhotoItem(baseWidth, baseHeight);
+                findBestInitialPosition(item);
             }
+        }
+
+        function createPhotoItem(w, h) {
+            const el = document.createElement('div');
+            el.className = 'photo-item';
+            el.style.width = w + 'px';
+            el.style.height = h + 'px';
+            el.dataset.baseW = w;
+            el.dataset.baseH = h;
+            el.dataset.mode = "portrait";
+
+            const imgEl = document.createElement('img');
+            imgEl.src = processedPhotoData;
+            imgEl.className = 'photo-img';
+            el.appendChild(imgEl);
+
+            const del = document.createElement('div');
+            del.className = 'delete-btn no-print';
+            del.innerHTML = '×';
+            del.onclick = (e) => { e.stopPropagation(); el.remove(); };
+            el.appendChild(del);
+
+            let startX, startY, startLeft, startTop;
+
+            el.addEventListener('pointerdown', (e) => {
+                if (e.target.classList.contains('delete-btn')) return;
+                activeMoveId = e.pointerId;
+                el.setPointerCapture(e.pointerId);
+                el.classList.add('dragging');
+                startX = e.clientX;
+                startY = e.clientY;
+                startLeft = parseFloat(el.style.left) || 0;
+                startTop = parseFloat(el.style.top) || 0;
+                el.style.zIndex = "1000";
+            });
+
+            el.addEventListener('pointermove', (e) => {
+                if (activeMoveId !== e.pointerId) return;
+                let nl = startLeft + (e.clientX - startX);
+                let nt = startTop + (e.clientY - startY);
+
+                nl = Math.max(0, Math.min(nl, printArea.clientWidth - el.offsetWidth));
+                nt = Math.max(0, Math.min(nt, printArea.clientHeight - el.offsetHeight));
+
+                el.style.left = nl + 'px';
+                el.style.top = nt + 'px';
+                
+                resolveCollision(el, true); 
+            });
+
+            el.addEventListener('pointerup', (e) => {
+                if (activeMoveId !== e.pointerId) return;
+                activeMoveId = null;
+                el.releasePointerCapture(e.pointerId);
+                el.classList.remove('dragging');
+                el.style.zIndex = "100";
+                
+                // Toggle rotasi jika hanya diklik (tanpa digeser jauh)
+                if (Math.abs(e.clientX - startX) < 5 && Math.abs(e.clientY - startY) < 5) {
+                    toggleRotate(el);
+                }
+            });
+
+            printArea.appendChild(el);
+            return el;
+        }
+
+        function toggleRotate(el) {
+            const isPortrait = el.dataset.mode === "portrait";
+            const bw = parseFloat(el.dataset.baseW);
+            const bh = parseFloat(el.dataset.baseH);
+            const img = el.querySelector('img');
+
+            if (isPortrait) {
+                // Berubah ke Landscape
+                el.style.width = bh + 'px';
+                el.style.height = bw + 'px';
+                
+                // Rotasi gambar agar tetap pas di kontainer baru
+                // Karena lebar kontainer baru adalah tinggi asli, kita perlu memutar gambar
+                img.style.width = el.style.height;
+                img.style.height = el.style.width;
+                img.style.position = "absolute";
+                img.style.transform = "rotate(-90deg)";
+                img.style.transformOrigin = "center";
+                
+                el.dataset.mode = "landscape";
+            } else {
+                // Berubah ke Portrait
+                el.style.width = bw + 'px';
+                el.style.height = bh + 'px';
+                
+                img.style.width = "100%";
+                img.style.height = "100%";
+                img.style.position = "static";
+                img.style.transform = "none";
+                
+                el.dataset.mode = "portrait";
+            }
+            
+            // Pastikan tidak keluar batas kertas setelah rotasi
+            let cl = parseFloat(el.style.left);
+            let ct = parseFloat(el.style.top);
+            el.style.left = Math.max(0, Math.min(cl, printArea.clientWidth - el.offsetWidth)) + "px";
+            el.style.top = Math.max(0, Math.min(ct, printArea.clientHeight - el.offsetHeight)) + "px";
+
+            resolveCollision(el, false);
+        }
+
+        function isOverlapping(r1, r2) {
+            const buffer = GAP - 1; 
+            return !(r1.right + buffer < r2.left || 
+                     r1.left - buffer > r2.right || 
+                     r1.bottom + buffer < r2.top || 
+                     r1.top - buffer > r2.bottom);
+        }
+
+        function resolveCollision(target, isDragging) {
+            const items = Array.from(printArea.querySelectorAll('.photo-item')).filter(i => i !== target);
+            let targetRect = target.getBoundingClientRect();
+            let collided = true;
+            let iterations = 0;
+
+            while (collided && iterations < 20) {
+                collided = false;
+                iterations++;
+                
+                for (const other of items) {
+                    const otherRect = other.getBoundingClientRect();
+                    if (isOverlapping(targetRect, otherRect)) {
+                        collided = true;
+                        
+                        const mover = isDragging ? other : target;
+                        const staticObj = isDragging ? target : other;
+                        const sRect = staticObj.getBoundingClientRect();
+                        const mRect = mover.getBoundingClientRect();
+
+                        let newL = (parseFloat(mover.style.left) || 0) + (sRect.right - mRect.left) + GAP;
+                        
+                        if (newL + mover.offsetWidth > printArea.clientWidth) {
+                            mover.style.left = "0px";
+                            mover.style.top = (parseFloat(mover.style.top) || 0) + GAP + "px";
+                        } else {
+                            mover.style.left = newL + "px";
+                        }
+                        
+                        targetRect = target.getBoundingClientRect(); 
+                    }
+                }
+            }
+        }
+
+        function findBestInitialPosition(el) {
+            let found = false;
+            let x = 0, y = 0;
+            const step = 8;
+            
+            while (!found && y < printArea.clientHeight) {
+                el.style.left = x + "px";
+                el.style.top = y + "px";
+                
+                let overlap = false;
+                const items = Array.from(printArea.querySelectorAll('.photo-item')).filter(i => i !== el);
+                for (const other of items) {
+                    if (isOverlapping(el.getBoundingClientRect(), other.getBoundingClientRect())) {
+                        overlap = true;
+                        break;
+                    }
+                }
+                
+                if (!overlap) {
+                    found = true;
+                } else {
+                    x += step;
+                    if (x + el.offsetWidth > printArea.clientWidth) {
+                        x = 0;
+                        y += step;
+                    }
+                }
+            }
+        }
+
+        function autoPackItems() {
+            const items = Array.from(printArea.querySelectorAll('.photo-item'));
+            items.sort((a,b) => (parseFloat(a.style.top) - parseFloat(b.style.top)) || (parseFloat(a.style.left) - parseFloat(b.style.left)));
+            
+            items.forEach(item => {
+                item.style.left = "0px";
+                item.style.top = "0px";
+                findBestInitialPosition(item);
+            });
         }
 
         function clearLayout() {
-            if (confirm("Hapus semua foto di lembar kerja?")) {
-                printArea.innerHTML = `<div id="layout-placeholder" class="w-full h-96 flex flex-col items-center justify-center text-slate-300"><span class="text-6xl mb-4">📄</span><p>Lembar kerja masih kosong</p></div>`;
-            }
+            if (confirm("Hapus semua foto di lembar cetak?")) printArea.innerHTML = "";
         }
-  </script>
+
+        customW.addEventListener('input', () => {
+            if (aspectSelect.value === 'custom') updatePrintSizeUI();
+        });
+        customH.addEventListener('input', () => {
+            if (aspectSelect.value === 'custom') updatePrintSizeUI();
+        });
+
+        updateCanvasSize();
+        updatePrintSizeUI();
+    </script>
 </body>
 </html>
